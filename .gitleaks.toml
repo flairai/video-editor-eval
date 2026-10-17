@@ -1,0 +1,8 @@
+# gitleaks (CI and pre-commit): its default rules, minus one file they misread. The CS:GO training pool names each
+# clip in a field called "key" ("chrisj-ace-2018"), which the generic-api-key rule takes for a key.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "clip identifiers in a field named key, not secrets"
+paths = ['''generators/csgo-commentary-edit/build/train_pool\.json''']

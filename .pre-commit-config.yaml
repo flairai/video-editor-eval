@@ -1,0 +1,11 @@
+# pre-commit install: a commit that holds what looks like a key, or that ruff rejects, is stopped before it
+# exists. CI runs the same checks (.github/workflows/ci.yml).
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.7
+    hooks:
+      - id: ruff

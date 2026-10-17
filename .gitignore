@@ -1,0 +1,37 @@
+# Media stays out of git: it is in the media dataset, pinned by configs/media.lock.json, and every command that
+# needs it fetches it (uv run evals media pull fetches it ahead of time). So are camera-eval's stored grades of
+# the oracles and controls, beside each task's controls.
+*.mp4
+*.m4a
+*.mov
+*.mkv
+*.webm
+*.wav
+*.npy
+*.npz
+*.jpg
+*.png
+*.hdr
+*.gltf
+*.bin
+*.part
+controls/*/grades/
+
+# Runs, reports, caches and graded outputs
+jobs/
+graded-*/
+tmp/
+.cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store
+
+# Environments, local tool state, and keys: .env holds them and never leaves this machine
+.venv/
+.claude/
+.env
+.env.*
+!.env.example
