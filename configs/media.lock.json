@@ -1,7 +1,7 @@
 {
  "repo": "antoniocao/video-editor-eval",
  "repo_type": "dataset",
- "revision": "418005520637da020fc4555dfe6b95bbe640eae1",
+ "revision": "c2f7a753267005cf0a5354454b00b0f2597e098c",
  "files": {
   "controls/camera-gallery-loop/grades/2dd20ec1d54a66a63fed5db0ec2eac802b1cc11c060eb5309d27858f34dadb2b/closure_pair.png": {
    "bytes": 634191,
