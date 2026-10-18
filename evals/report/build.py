@@ -35,7 +35,7 @@ from datetime import datetime
 from pathlib import Path
 
 from evals.core import records, registry
-from evals.core.config import JOBS, ROOT, rel, resolve, settings
+from evals.core.config import JOBS, ROOT, load_env_files, rel, resolve, settings
 from evals.core.records import TrialRecord
 from evals.core.secrets import dumps
 from evals.core.tasks import Task, discover
@@ -404,11 +404,12 @@ def benchmark(tasks: list[dict], subjects: dict) -> list[dict]:
 
 
 def run_info(path: Path, info: dict) -> dict:
-    """A run.json, with what the page shows filled in for the runs camera-eval bench wrote before evals."""
+    """What the page shows of a run.json, filled in for the runs camera-eval bench wrote before evals. Not its
+    command line, git state or notes: those name this machine's paths, and the page is meant to be published."""
     started = info.get("started")
     if isinstance(started, (int, float)):
         started = datetime.fromtimestamp(started).astimezone().isoformat(timespec="seconds")
-    return {**info, "name": info.get("name") or path.name, "title": info.get("title") or info.get("suite") or path.name,
+    return {"name": info.get("name") or path.name, "title": info.get("title") or info.get("suite") or path.name,
             "executor": info.get("executor") or ("harbor" if (path / "harbor").is_dir() else "?"), "attempts": info.get("attempts") or 1,
             "tasks": info.get("tasks") or [], "network": info.get("network", "enforced"), "subjects": info.get("subjects") or [],
             "started": started}
@@ -580,6 +581,7 @@ def materialize(html: str, plan: dict, blobs: dict, manifest: dict, out: Path, n
 def build(paths: list[Path], out: Path | None = None, name: str = "report", cache: Path | None = None,
           title: str | None = None) -> Path:
     """Build the page for these runs (or job or trial folders); returns its index.html."""
+    load_env_files(None)  # .env's keys too, so the page masks every one an agent printed
     paths = [Path(p).resolve() for p in paths]
     v = versions()
     data, plan, inputs, blobs = collect(paths, v, title)

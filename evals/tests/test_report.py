@@ -92,3 +92,32 @@ def test_an_attempts_detail_file_masks_keys(tmp_path, monkeypatch):
     out = build.split(trial, media)
     written = media.blobs[out["detail"]].decode()
     assert "sk-test-0123456789abcdef" not in written and "[MY_SERVICE_API_KEY]" in written
+
+
+def test_a_deploy_copy_fits_pages_and_refuses_keys(tmp_path, monkeypatch):
+    """Every file of the copy fits Pages' limit, and a page holding a key is never uploaded."""
+    from evals.report import deploy
+    page = tmp_path / "page"
+    (page / "media").mkdir(parents=True)
+    (page / "index.html").write_text("<title>Benchmark</title>")
+    (page / "media" / "a.json").write_text('{"out": "ok"}')
+    (page / "media" / "v.mp4").write_bytes(b"\0" * 1000)
+    stats = deploy.stage(page, tmp_path / "out", tmp_path / "cache")
+    assert stats["files"] == 3 and not stats["shrunk"] and deploy.scan(tmp_path / "out") == []
+    assert '"/media/v.mp4": 1000' in (tmp_path / "out" / "_worker.js").read_text()  # the worker knows what it serves in ranges
+    assert "/media/*.mp4" in (tmp_path / "out" / "_routes.json").read_text()
+    fake = "tok-" + "0123456789abcdef"  # built here, so no key-shaped text sits in the source for scanners to flag
+    monkeypatch.setenv("SOME_SERVICE_TOKEN", fake)
+    (page / "media" / "b.json").write_text(json.dumps({"out": "the token is " + fake, "k": "AIza" + "x" * 35}))
+    deploy.stage(page, tmp_path / "out", tmp_path / "cache")
+    found = deploy.scan(tmp_path / "out")
+    assert "media/b.json: the value of SOME_SERVICE_TOKEN" in found and "media/b.json: a Google API key" in found
+    assert not any(fake in f for f in found)  # it says where, never the key
+
+
+def test_the_page_leaves_out_a_runs_command_line(tmp_path):
+    """A run's command line names this machine's paths (its env files among them), and the page is published."""
+    info = {"name": "r", "started": "2026-10-17T10:00:00+00:00", "git": {"commit": "abc"},
+            "command": ["/home/me/.venv/bin/evals", "run", "all", "--env-file", "/home/me/keys.env"]}
+    out = build.run_info(tmp_path, info)
+    assert out["started"] == info["started"] and "command" not in out and "/home/me" not in json.dumps(out)

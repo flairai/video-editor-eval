@@ -27,7 +27,10 @@ suite of suites) runs each suite under `jobs/runs/<run>/<suite>/` and then build
 The page (`evals/report/`) is the benchmark and every attempt: `build.py` collects the trial records into
 the page data, a summary per attempt inline and the rest in a file per attempt that the page fetches when
 it is opened; `detail.py` reads each attempt's trajectory and its judges' inputs and answers; `shell.html`
-draws them; and a view per kind of task draws what only that kind has.
+draws them; and a view per kind of task draws what only that kind has. `deploy.py` publishes a built page
+on Cloudflare Pages: it re-encodes any video over Pages' 25 MiB limit, adds a small worker
+(`pages_worker.js`) that answers the byte-range requests a browser needs to seek in a video, and refuses to
+upload a page that holds a key.
 
 ## Interfaces
 
