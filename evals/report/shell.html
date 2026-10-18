@@ -58,9 +58,33 @@ code, pre, .mono { font-family: var(--mono); }
 .label .sub { margin-top: 2px; font-size: 13px; color: var(--text-2); }
 h1 { margin: 0; font: 500 32px/1.12 var(--sans); letter-spacing: -0.02em; text-wrap: balance; }
 
-/* header and navigation */
-.top { padding-block: 56px 40px; align-items: end; }
-.top .body { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; }
+/* masthead, then one band per category opened by a large title */
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding-block: 36px 0; }
+.top h1 { font: 500 15px/1.4 var(--sans); letter-spacing: 0; }
+.cat { padding-top: 112px; scroll-margin-top: 16px; }
+.cat:first-of-type { padding-top: 64px; }
+.cat-head { padding-top: 32px; border-top: 1px solid var(--line-2); padding-bottom: 48px; align-items: end; }
+.cat-head .title { grid-column: 1 / span 9; min-width: 0; }
+.cat-head h2 { margin: 0; font: 500 56px/1.02 var(--sans); letter-spacing: -0.03em; text-wrap: balance; }
+.cat-head p { margin: 14px 0 0; color: var(--text-2); font-size: 15px; }
+.cat-head .tools { grid-column: 10 / span 3; justify-self: end; }
+.results { padding-bottom: 36px; }
+section.section, .task { scroll-margin-top: 72px; }
+.rail { position: fixed; z-index: 15; left: max(20px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%); max-height: 84vh; overflow-y: auto; }
+.rail ol { list-style: none; margin: 0; padding: 10px 14px 10px 10px; display: grid; gap: 0; border: 1px solid transparent; border-radius: 10px; transition: background-color 0.15s, border-color 0.15s; }
+.rail button { display: flex; align-items: center; gap: 12px; width: 100%; height: 22px; text-align: left; color: var(--text-3); }
+.rail .tick { flex: none; width: 12px; height: 2px; border-radius: 1px; background: var(--line-2); transition: background-color 0.15s; }
+.rail .l1 .tick { width: 22px; background: var(--text-3); }
+.rail .l1 + .l2 { margin-top: 2px; }
+.rail .l2 + .l1 { margin-top: 10px; }
+.rail button.on .tick { background: var(--text); }
+.rail .name { font-size: 13px; white-space: nowrap; max-width: 0; overflow: hidden; opacity: 0; transition: opacity 0.15s; }
+.rail .l1 .name { color: var(--text-2); font-weight: 500; }
+.rail button.on .name, .rail button:hover .name { color: var(--text); }
+.rail:hover ol, .rail:focus-within ol { background: rgba(9, 9, 11, 0.96); border-color: var(--line); }
+.rail:hover .name, .rail:focus-within .name { max-width: 480px; opacity: 1; }
+@media (max-width: 1399px) { .rail { display: none !important; } }
+/* the attempt view's bar */
 .seg { display: inline-flex; gap: 2px; }
 .seg button { padding: 4px 10px; border-radius: 6px; font-size: 13px; color: var(--text-3); }
 .seg button:hover { color: var(--text); }
@@ -100,6 +124,7 @@ th:last-child, td:last-child { padding-right: 0; }
 
 /* task matrix */
 .task { padding-block: 28px; border-top: 1px solid var(--line); }
+.results + .task { border-top-color: var(--line-2); }
 .task .label h3 { line-height: 1.55; }
 .mrow { display: grid; grid-template-columns: minmax(180px, 2.4fr) minmax(0, 7fr) 56px; gap: var(--gutter); align-items: start; padding-block: 12px; }
 .mrow:first-child { padding-top: 0; }
@@ -220,7 +245,10 @@ pre.clamp { max-height: 16.5em; overflow: hidden; }
 @media (max-width: 900px) {
   .row > .label, .row > .body { grid-column: 1 / -1; }
   .row > .label { margin-bottom: 14px; }
-  .top .body { margin-top: 16px; }
+  .cat-head .title, .cat-head .tools { grid-column: 1 / -1; justify-self: start; }
+  .cat-head .tools { margin-top: 20px; }
+  .cat-head h2 { font-size: 40px; }
+  .cat { padding-top: 80px; }
   .mrow { grid-template-columns: minmax(0, 1fr) 56px; }
   .mrow .shots { grid-column: 1 / -1; grid-row: 2; }
   .pair { grid-template-columns: minmax(0, 1fr); }
@@ -235,6 +263,7 @@ pre.clamp { max-height: 16.5em; overflow: hidden; }
 </head>
 <body>
 <div id="bar" class="bar" hidden></div>
+<nav class="rail" id="rail" aria-label="Sections" hidden></nav>
 <main class="page" id="app"></main>
 <div class="tip" id="tip" hidden></div>
 <div class="viewer" id="viewer" hidden></div>
@@ -278,27 +307,63 @@ $("#viewer").onclick = () => { $("#viewer").hidden = true; };
 function zoomable(img, src) { img.classList.add("zoom"); img.onclick = () => { const i = new Image(); i.src = src || img.src; openViewer(i); }; return img; }
 
 /* ------------------------------------------------------------------ benchmark */
+let CHARTS = [];
 function renderBenchmark() {
-  bar.hidden = true; CUR = null;
+  bar.hidden = true; CUR = null; CHARTS = [];
   const runs = DATA.runs || [];
   const day = runs.map(r => r.started).filter(Boolean).sort().at(-1);
-  app.innerHTML = `<header class="row top"><div class="label"><h1>${esc(DATA.title)}</h1></div>
-      <div class="body"><span class="dim">${day ? esc(new Date(day).toLocaleDateString("en-GB", {day: "numeric", month: "long", year: "numeric"})) : ""}</span>
-      ${(DATA.benchmark || []).length ? '<div class="seg" role="group" aria-label="Chart axis"><button type="button" data-m="usd">Cost</button><button type="button" data-m="seconds">Time</button></div>' : ""}</div></header>`;
-  app.querySelectorAll(".seg button").forEach(b => { b.setAttribute("aria-pressed", b.dataset.m === METRIC); b.onclick = () => { METRIC = b.dataset.m; renderBenchmark(); }; });
+  app.innerHTML = `<header class="top"><h1>${esc(DATA.title)}</h1><span class="dim">${day ? esc(new Date(day).toLocaleDateString("en-GB", {day: "numeric", month: "long", year: "numeric"})) : ""}</span></header>`;
   const cats = [...new Set(DATA.tasks.map(t => t.category))];
   const scopes = cats.map(c => (DATA.benchmark || []).find(s => s.id === c) || {id: c, label: CATEGORY[c] || c, points: [], tasks: DATA.tasks.filter(t => t.category === c).map(t => t.id)});
-  scopes.sort((a, b) => b.points.length - a.points.length);
+  scopes.sort((a, b) => b.points.length - a.points.length || cats.indexOf(a.id) - cats.indexOf(b.id));
+  const outline = [];
   for (const sc of scopes) {
+    const tasks = sc.tasks.map(id => DATA.tasks.find(t => t.id === id)).filter(Boolean);
+    const runsOf = tasks.flatMap(t => t.trials.filter(x => !x.control));
+    const tested = [...new Set(runsOf.map(x => x.subject))].filter(s => !subj(s).reference);
+    const kind = tested.some(s => subj(s).harness) ? "agents" : "models";
+    const count = [plural(tasks.length, "task"), tested.length ? `${tested.length} ${tested.length === 1 ? kind.slice(0, -1) : kind}` : "", plural(runsOf.length, "attempt")].filter(Boolean).join(", ");
     const sec = document.createElement("section");
-    sec.className = "section row";
-    sec.innerHTML = `<div class="label"><h2>${esc(sc.label)}</h2></div><div class="body">${sc.points.length ? '<div class="chart"></div><div class="table-wrap board"></div>' : ""}</div>`;
+    sec.className = "cat";
+    sec.innerHTML = `<header class="row cat-head"><div class="title"><h2>${esc(sc.label)}</h2><p>${esc(count)}</p></div>
+      ${sc.points.length ? '<div class="tools"><div class="seg" role="group" aria-label="Chart axis"><button type="button" data-m="usd">Cost</button><button type="button" data-m="seconds">Time</button></div></div>' : ""}</header>
+      ${sc.points.length ? '<div class="row results"><div class="body"><div class="chart"></div><div class="table-wrap board"></div></div></div>' : ""}`;
     app.append(sec);
-    if (sc.points.length) { pareto(sec.querySelector(".chart"), sc); board(sec.querySelector(".board"), sc); }
-    else sec.style.paddingBottom = "0";
-    for (const id of sc.tasks) app.append(taskRow(DATA.tasks.findIndex(t => t.id === id), sc));
+    outline.push({el: sec, label: sc.label, level: 1});
+    if (sc.points.length) { const box = sec.querySelector(".chart"); CHARTS.push([box, sc]); pareto(box, sc); board(sec.querySelector(".board"), sc); }
+    for (const t of tasks) { const row = taskRow(DATA.tasks.indexOf(t), sc); sec.append(row); outline.push({el: row, label: t.short || t.title, level: 2}); }
   }
+  app.querySelectorAll(".seg button").forEach(b => b.onclick = () => { METRIC = b.dataset.m; redrawCharts(); });
+  markMetric();
+  rail(outline);
   window.scrollTo(0, scrollBack);
+}
+function plural(n, word) { return `${n} ${word}${n === 1 ? "" : "s"}`; }
+function markMetric() { app.querySelectorAll(".seg button[data-m]").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === METRIC)); }
+function redrawCharts() { for (const [box, sc] of CHARTS) { box.innerHTML = ""; pareto(box, sc); } markMetric(); }
+
+/* the outline on the left of a wide screen: a tick per section, its name on hover, a click to go there */
+let SPY = null;
+function rail(items) {
+  const nav = $("#rail");
+  if (SPY) { removeEventListener("scroll", SPY); SPY = null; }
+  if (items.length < 2) { nav.hidden = true; return; }
+  nav.innerHTML = `<ol>${items.map((it, i) => `<li class="l${it.level}"><button type="button" data-i="${i}"><span class="tick"></span><span class="name">${esc(it.label)}</span></button></li>`).join("")}</ol>`;
+  nav.hidden = false;
+  const buttons = [...nav.querySelectorAll("button")];
+  const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  buttons.forEach(b => b.onclick = () => items[+b.dataset.i].el.scrollIntoView({behavior: smooth ? "smooth" : "auto", block: "start"}));
+  let queued = false;
+  const mark = () => {
+    queued = false;
+    let on = 0;
+    items.forEach((it, i) => { if (it.el.isConnected && it.el.getBoundingClientRect().top < innerHeight * 0.35) on = i; });
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) on = items.length - 1;
+    buttons.forEach((b, i) => { b.classList.toggle("on", i === on); if (i === on) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current"); });
+  };
+  SPY = () => { if (!queued) { queued = true; requestAnimationFrame(mark); } };
+  addEventListener("scroll", SPY, {passive: true});
+  mark();
 }
 
 function nice(a, b) {
@@ -392,6 +457,7 @@ async function renderAttempt(ti, ri) {
   if (!s0) { location.hash = ""; return; }
   drawBar(ti, ri);
   app.innerHTML = `<p class="loading">Loading</p>`;
+  rail([]);
   let more;
   try { more = await detail(s0); } catch (e) { app.innerHTML = `<p class="loading">This attempt's details did not load (${esc(e.message)}). Open the page over HTTP: python3 -m http.server -d jobs</p>`; return; }
   if (location.hash !== `#a${ti}-${ri}`) return;
@@ -417,6 +483,7 @@ async function renderAttempt(ti, ri) {
   if (VIEWS[t.view] && x.viz) { const sec = section("Analysis", ""); const box = sec.querySelector(".body"); box.classList.add("view"); app.append(sec); VIEWS[t.view].render(box, t, x, CTX); }
   app.append(checksSection(t, x));
   if (x.judges && x.judges.questions && x.judges.questions.length) app.append(judgesSection(t, x));
+  rail([...app.querySelectorAll("section.section")].map(sec => ({el: sec, label: sec.querySelector(".label h2").textContent, level: 1})));
   window.scrollTo(0, 0);
 }
 function section(label, html, sub) {
@@ -609,7 +676,7 @@ addEventListener("keydown", e => {
   if (e.key === "ArrowRight") $("#next") && $("#next").click();
   if (e.key === "ArrowLeft") $("#prev") && $("#prev").click();
 });
-let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (!CUR) renderBenchmark(); }, 200); });
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (!CUR) redrawCharts(); }, 200); });
 </script>
 <script>
 __VIEWS__
